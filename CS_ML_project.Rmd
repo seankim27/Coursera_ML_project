@@ -1,0 +1,97 @@
+---
+title: "CS_ML_project"
+author: "T Kim"
+date: "2024-10-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways.
+
+### Load library
+```{r}
+library(caret)
+library(randomForest)
+```
+
+### Load data
+```{r}
+train <- read.csv('/Users/skim/Desktop/temp/CS/ML/pml-training.csv')
+test <- read.csv('/Users/skim/Desktop/temp/CS/ML/pml-testing.csv')
+
+table(train$classe)
+```
+
+### Set trainign and validation data
+```{r}
+set.seed(273848)
+trainset <- createDataPartition(train$classe, p=0.8, list = F)
+Training <- train[trainset,]
+Validation <- train[-trainset,]
+```
+
+### Feature selection
+```{r}
+# Check for near zero variance predictors and drop them if necessary
+nonzerocol <- nearZeroVar(Training)
+Training <- Training[, -nonzerocol]
+
+# exclude columns with 40%  more missing values exclude descriptive columns
+countlength <- sapply(Training, function(x) {
+    sum(!(is.na(x) | x == ""))
+})
+nullCol <- names(countlength[countlength < 0.6 * length(Training$classe)])
+
+descriptcol <- c("X", "user_name", "raw_timestamp_part_1", "raw_timestamp_part_2", 
+    "cvtd_timestamp", "new_window", "num_window")
+
+excludecolumns <- c(descriptcol, nullCol)
+
+Training <- Training[, !names(Training) %in% excludecolumns]
+```
+
+### Model train and validation
+```{r}
+rfModel <- randomForest(as.factor(classe)~ ., data = Training, importance = TRUE, ntrees = 10)
+
+## Model Validation 
+
+ptraining <- predict(rfModel, Training)
+
+# Using 'union' to ensure same level
+u1 <- union(ptraining,Training$classe)
+t1 <- table(factor(ptraining, u1), factor(Training$classe, u1))
+print(confusionMatrix(t1))
+```
+Model perfomes well with training data
+
+### Validation of the model
+```{r}
+pvalidation <- predict(rfModel, Validation)
+
+# Using 'union' to ensure same level
+u2 <- union(pvalidation,Validation$classe)
+t2 <- table(factor(pvalidation, u2), factor(Validation$classe, u2))
+print(confusionMatrix(t2))
+```
+Cross validation accurracy is 99.7% & out-of-sample error is 0.3%. So our model performs good.
+
+### Test set prediction
+```{r}
+ptest <- predict(rfModel, test)
+ptest
+```
+
+
+
+
+
+
+
+
+
